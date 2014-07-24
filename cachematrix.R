@@ -21,16 +21,24 @@ makeCacheMatrix <- function(x = matrix()) {
   inv <- NULL  			    
   
   # Setter function to set source matrix
+  # Since we are creating matrix object, check if paramter is a matrix object
   set <- function(y) {
-    x <<- y
-    inv <<- NULL          
+    if(class(y) == "matrix"){
+      x <<- y
+      inv <<- NULL          
+    }
   }
   
   # Getter function to retreive source matrix
   get <- function() x
   
   # Setter function to save/cache inverse matrix
-  setinv <- function(inverse) inv <<- inverse   
+  setinv <- function(inverse) {
+    # Check if "inverse" is of type matrix.
+    if(class(inverse) == "matrix") {
+      inv <<- inverse   
+    }
+  }   
   
   # Getter function to retreive inverse matrix
   getinv <- function() inv              
@@ -53,15 +61,20 @@ cacheSolve <- function(x, ...) {
   # Get the inverse matrix from environment "x"
   inv <- x$getinv()                     
   
-  # Check if inverse matrix was available in cache. If available 
+  # Retreive the source matrix from environment "x"
+  data <- x$get()  
+  
+  
+  # (i)Check if inverse matrix was available in cache.
+  # (ii)If inverse matrix was available, check if it is inverse of the matrix in x - 
+  # NOTE : This is done by cheking that inverse(inverse matrix) == source matrix.
+  # If x is source matrix and y is it's inverse then solve(y) = x.
+  # Use identical function to compare data and inv. all.equals also can be used
   # print confirmation about the same and return the inverse matrix. Function execution terminated
-  if(!is.null(inv)) {                   
+  if(!is.null(inv) && identical(solve(data),inv) == T) {                   
     message("Retrieving inverse from cache")
     return(inv)                       
-  }
-  
-  # Retreive the source matrix from environment "x"
-  data <- x$get()                     
+  }                     
   
   # Terminate execution if object does not contain a matrix of if matrix is not square
   if(class(data) != "matrix")
@@ -73,12 +86,17 @@ cacheSolve <- function(x, ...) {
   # Assume source matrix is square matrix
   inv <- solve(data)               
   
-  #Save the matrix inverse computed above to environment "x" so that it's available from cache from the next cache
+  #Save the matrix inverse computed above to environment "x" so that it's available from
+  #cache from the next call to cacheSolve
   x$setinv(inv)                         
   
   # Return the matrix inverse
   inv
 }
+
+
+
+
 
 
 ###Unit Test cases - Install RUnit package to run
@@ -142,6 +160,20 @@ test.SolveInverseInverse <- function(){
   
   y <- matrix(c(-2,1,1.5,-0.5),2,2)
   checkEquals(solve(y),x)  
+}
+
+
+# Test cacheSolve - Check when source matrix changes, cacheSolve inverse matrix differs
+test.cacheSolveSourceMatrixChanged <- function(){
+  x <- matrix(1:4,2,2)
+  obj <- makeCacheMatrix(x)
+  checkEquals(obj$get(),x)
+  checkEquals(cacheSolve(obj),matrix(c(-2,1,1.5,-0.5),2,2))
+  checkEquals(cacheSolve(obj),matrix(c(-2,1,1.5,-0.5),2,2))
+  
+  # Change source matrix
+  obj$set(matrix(5:8,2,2))
+  checkEquals(cacheSolve(obj),matrix(c(-4,3,3.5,-2.5),2,2))
 }
 
 ## Test solve function exception when input matrix is not square
